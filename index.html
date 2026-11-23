@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>給完全新手的台股 ETF 入門課｜LLM Wiki 教學簡報</title>
+  <style>
+    :root {
+      --bg-dark: #0b0f19;
+      --card-bg: rgba(17, 24, 39, 0.78);
+      --card-border: rgba(148, 163, 184, 0.22);
+      --text-main: #f8fafc;
+      --text-sub: #cbd5e1;
+      --text-muted: #94a3b8;
+      --red-up: #ef4444;
+      --red-glow: rgba(239, 68, 68, 0.22);
+      --green-down: #22c55e;
+      --green-glow: rgba(34, 197, 94, 0.22);
+      --blue-accent: #38bdf8;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: "Microsoft JhengHei", "PingFang TC", "Segoe UI", sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 原生內嵌擬真 K 線背景層（100% 不會被 GitHub Pages 擋掉） */
+    .bg-kline-layer {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: -2;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .bg-kline-layer svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .bg-overlay {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at 50% 35%, rgba(11, 15, 25, 0.45) 0%, rgba(11, 15, 25, 0.88) 100%);
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    /* 頂部導覽與進度條 */
+    .top-bar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(11, 15, 25, 0.85);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--card-border);
+    }
+    .progress-track {
+      width: 100%;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .progress-fill {
+      height: 100%;
+      width: 10%;
+      background: linear-gradient(90deg, var(--red-up), #f97316);
+      transition: width 0.35s ease;
+      box-shadow: 0 0 10px var(--red-glow);
+    }
+    .nav-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand {
+      font-weight: 700;
+      font-size: 1rem;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .brand-tag {
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(239, 68, 68, 0.16);
+      border: 1px solid rgba(239, 68, 68, 0.45);
+      color: #fca5a5;
+    }
+    .nav-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .slide-counter {
+      font-size: 0.9rem;
+      color: var(--text-sub);
+      font-variant-numeric: tabular-nums;
+      margin-right: 4px;
+    }
+    .btn {
+      background: rgba(30, 41, 59, 0.85);
+      color: var(--text-main);
+      border: 1px solid var(--card-border);
+      padding: 7px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+    .btn:hover:not(:disabled) {
+      border-color: var(--red-up);
+      background: rgba(239, 68, 68, 0.18);
+    }
+    .btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+    select.jump-select {
+      background: rgba(30, 41, 59, 0.9);
+      color: var(--text-main);
+      border: 1px solid var(--card-border);
+      padding: 7px 10px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      max-width: 190px;
+    }
+
+    /* 簡報主舞台 */
+    main.stage {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px 20px 40px;
+    }
+
+    .slide {
+      display: none;
+      width: 100%;
+      max-width: 980px;
+      min-height: 540px;
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      padding: 36px 42px 26px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+      flex-direction: column;
+      justify-content: space-between;
+      animation: fadeIn 0.3s ease;
+    }
+    .slide.active {
+      display: flex;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .slide-kicker {
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      color: var(--blue-accent);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .slide h1 {
+      margin: 0 0 14px;
+      font-size: 2.3rem;
+      line-height: 1.3;
+    }
+    .slide h2 {
+      margin: 0 0 18px;
+      font-size: 1.8rem;
+      line-height: 1.35;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+      padding-bottom: 12px;
+    }
+    .lead {
+      font-size: 1.08rem;
+      color: var(--text-sub);
+      line-height: 1.7;
+      margin: 0 0 22px;
+    }
+
+    /* 內容排版元件 */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 8px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 8px;
+    }
+    .box {
+      background: rgba(30, 41, 59, 0.65);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+    .box.red { border-left: 4px solid var(--red-up); }
+    .box.green { border-left: 4px solid var(--green-down); }
+    .box.blue { border-left: 4px solid var(--blue-accent); }
+
+    .box h3 {
+      margin: 0 0 10px;
+      font-size: 1.15rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .box p, .box li {
+      color: var(--text-sub);
+      font-size: 0.98rem;
+      line-height: 1.65;
+      margin: 6px 0;
+    }
+    .box ul {
+      padding-left: 20px;
+      margin: 8px 0 0;
+    }
+
+    .text-red { color: var(--red-up); font-weight: 700; }
+    .text-green { color: var(--green-down); font-weight: 700; }
+    .text-blue { color: var(--blue-accent); font-weight: 700; }
+
+    /* 表格樣式 */
+    table.compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 0.96rem;
+      overflow: hidden;
+      border-radius: 10px;
+    }
+    .compare-table th, .compare-table td {
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+    }
+    .compare-table th {
+      background: rgba(30, 41, 59, 0.9);
+      color: var(--text-main);
+    }
+    .compare-table td {
+      background: rgba(15, 23, 42, 0.55);
+      color: var(--text-sub);
+    }
+    .compare-table tr.highlight td {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    /* 微笑曲線迷你示意圖 */
+    .diagram-box {
+      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 12px;
+      padding: 14px 18px;
+      margin-top: 14px;
+      text-align: center;
+    }
+
+    /* 封面專屬樣式 */
+    .cover-center {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      flex: 1;
+      padding: 16px 0;
+    }
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 18px 0 24px;
+    }
+    .pill {
+      background: rgba(30, 41, 59, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      color: var(--text-sub);
+    }
+
+    /* 每頁底部 Wiki 來源標籤 */
+    .slide-footer {
+      margin-top: 24px;
+      padding-top: 14px;
+      border-top: 1px dashed rgba(148, 163, 184, 0.22);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .source-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: #bae6fd;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-family: Consolas, monospace;
+      font-size: 0.82rem;
+    }
+    .disclaimer-box {
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.45);
+      border-radius: 12px;
+      padding: 14px 18px;
+      margin-top: 14px;
+      font-size: 0.92rem;
+      color: #dcfce7;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 768px) {
+      .slide { padding: 24px 20px 20px; min-height: auto; }
+      .slide h1 { font-size: 1.7rem; }
+      .slide h2 { font-size: 1.38rem; }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      select.jump-select { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 擬真台股紅綠 K 線＋均線＋網格背景（原生內嵌 SVG） -->
+  <div class="bg-kline-layer" aria-hidden="true">
+    <svg viewBox="0 0 1440 800" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+      <!-- 背景格線 -->
+      <g stroke="rgba(255,255,255,0.045)" stroke-width="1">
+        <line x1="0" y1="160" x2="1440" y2="160" />
+        <line x1="0" y1="320" x2="1440" y2="320" />
+        <line x1="0" y1="480" x2="1440" y2="480" />
+        <line x1="0" y1="640" x2="1440" y2="640" />
+        <line x1="180" y1="0" x2="180" y2="800" />
+        <line x1="360" y1="0" x2="360" y2="800" />
+        <line x1="540" y1="0" x2="540" y2="800" />
+        <line x1="720" y1="0" x2="720" y2="800" />
+        <line x1="900" y1="0" x2="900" y2="800" />
+        <line x1="1080" y1="0" x2="1080" y2="800" />
+        <line x1="1260" y1="0" x2="1260" y2="800" />
+      </g>
+      <!-- 移動平均線 MA20 & MA5 -->
+      <path d="M0 570 C 180 610, 320 460, 500 490 S 820 350, 1020 380 S 1260 220, 1440 200"
+            fill="none" stroke="#38bdf8" stroke-width="2.5" opacity="0.28" />
+      <path d="M0 530 C 160 560, 300 420, 480 460 S 780 310, 990 350 S 1240 180, 1440 160"
+            fill="none" stroke="#f59e0b" stroke-width="2" opacity="0.24" />
+      <!-- K 線波段群組（紅漲綠跌） -->
+      <g opacity="0.34">
+        <line x1="70" y1="500" x2="70" y2="610" stroke="#ef4444" stroke-width="2"/><rect x="61" y="525" width="18" height="55" rx="2" fill="#ef4444"/>
+        <line x1="130" y1="520" x2="130" y2="635" stroke="#22c55e" stroke-width="2"/><rect x="121" y="540" width="18" height="65" rx="2" fill="#22c55e"/>
+        <line x1="190" y1="560" x2="190" y2="670" stroke="#22c55e" stroke-width="2"/><rect x="181" y="585" width="18" height="55" rx="2" fill="#22c55e"/>
+        <line x1="250" y1="510" x2="250" y2="630" stroke="#ef4444" stroke-width="2"/><rect x="241" y="535" width="18" height="65" rx="2" fill="#ef4444"/>
+        <line x1="310" y1="450" x2="310" y2="570" stroke="#ef4444" stroke-width="2"/><rect x="301" y="475" width="18" height="70" rx="2" fill="#ef4444"/>
+        <line x1="370" y1="410" x2="370" y2="515" stroke="#ef4444" stroke-width="2"/><rect x="361" y="430" width="18" height="55" rx="2" fill="#ef4444"/>
+        <line x1="430" y1="425" x2="430" y2="525" stroke="#22c55e" stroke-width="2"/><rect x="421" y="445" width="18" height="50" rx="2" fill="#22c55e"/>
+        <line x1="490" y1="450" x2="490" y2="555" stroke="#22c55e" stroke-width="2"/><rect x="481" y="470" width="18" height="55" rx="2" fill="#22c55e"/>
+        <line x1="550" y1="400" x2="550" y2="520" stroke="#ef4444" stroke-width="2"/><rect x="541" y="425" width="18" height="65" rx="2" fill="#ef4444"/>
+        <line x1="610" y1="350" x2="610" y2="465" stroke="#ef4444" stroke-width="2"/><rect x="601" y="375" width="18" height="65" rx="2" fill="#ef4444"/>
+        <line x1="670" y1="320" x2="670" y2="430" stroke="#ef4444" stroke-width="2"/><rect x="661" y="340" width="18" height="60" rx="2" fill="#ef4444"/>
+        <line x1="730" y1="335" x2="730" y2="440" stroke="#22c55e" stroke-width="2"/><rect x="721" y="355" width="18" height="55" rx="2" fill="#22c55e"/>
+        <line x1="790" y1="295" x2="790" y2="405" stroke="#ef4444" stroke-width="2"/><rect x="781" y="315" width="18" height="60" rx="2" fill="#ef4444"/>
+        <line x1="850" y1="265" x2="850" y2="375" stroke="#ef4444" stroke-width="2"/><rect x="841" y="285" width="18" height="55" rx="2" fill="#ef4444"/>
+        <line x1="910" y1="280" x2="910" y2="395" stroke="#22c55e" stroke-width="2"/><rect x="901" y="305" width="18" height="60" rx="2" fill="#22c55e"/>
+        <line x1="970" y1="315" x2="970" y2="425" stroke="#22c55e" stroke-width="2"/><rect x="961" y="335" width="18" height="55" rx="2" fill="#22c55e"/>
+        <line x1="1030" y1="260" x2="1030" y2="375" stroke="#ef4444" stroke-width="2"/><rect x="1021" y="280" width="18" height="65" rx="2" fill="#ef4444"/>
+        <line x1="1090" y1="215" x2="1090" y2="325" stroke="#ef4444" stroke-width="2"/><rect x="1081" y="235" width="18" height="60" rx="2" fill="#ef4444"/>
+        <line x1="1150" y1="185" x2="1150" y2="290" stroke="#ef4444" stroke-width="2"/><rect x="1141" y="205" width="18" height="55" rx="2" fill="#ef4444"/>
+        <line x1="1210" y1="205" x2="1210" y2="305" stroke="#22c55e" stroke-width="2"/><rect x="1201" y="220" width="18" height="50" rx="2" fill="#22c55e"/>
+        <line x1="1270" y1="150" x2="1270" y2="255" stroke="#ef4444" stroke-width="2"/><rect x="1261" y="170" width="18" height="55" rx="2" fill="#ef4444"/>
+        <line x1="1330" y1="115" x2="1330" y2="225" stroke="#ef4444" stroke-width="2"/><rect x="1321" y="135" width="18" height="60" rx="2" fill="#ef4444"/>
+        <line x1="1390" y1="95" x2="1390" y2="200" stroke="#ef4444" stroke-width="2"/><rect x="1381" y="115" width="18" height="50" rx="2" fill="#ef4444"/>
+      </g>
+      <!-- 底部成交量柱狀圖 -->
+      <g opacity="0.16">
+        <rect x="61" y="730" width="18" height="70" fill="#ef4444"/>
+        <rect x="121" y="745" width="18" height="55" fill="#22c55e"/>
+        <rect x="181" y="720" width="18" height="80" fill="#22c55e"/>
+        <rect x="241" y="710" width="18" height="90" fill="#ef4444"/>
+        <rect x="301" y="695" width="18" height="105" fill="#ef4444"/>
+        <rect x="361" y="725" width="18" height="75" fill="#ef4444"/>
+        <rect x="421" y="750" width="18" height="50" fill="#22c55e"/>
+        <rect x="481" y="740" width="18" height="60" fill="#22c55e"/>
+        <rect x="541" y="705" width="18" height="95" fill="#ef4444"/>
+        <rect x="601" y="690" width="18" height="110" fill="#ef4444"/>
+        <rect x="661" y="715" width="18" height="85" fill="#ef4444"/>
+        <rect x="721" y="745" width="18" height="55" fill="#22c55e"/>
+        <rect x="781" y="720" width="18" height="80" fill="#ef4444"/>
+        <rect x="841" y="700" width="18" height="100" fill="#ef4444"/>
+        <rect x="901" y="735" width="18" height="65" fill="#22c55e"/>
+        <rect x="961" y="740" width="18" height="60" fill="#22c55e"/>
+        <rect x="1021" y="705" width="18" height="95" fill="#ef4444"/>
+        <rect x="1081" y="685" width="18" height="115" fill="#ef4444"/>
+        <rect x="1141" y="710" width="18" height="90" fill="#ef4444"/>
+        <rect x="1201" y="745" width="18" height="55" fill="#22c55e"/>
+        <rect x="1261" y="715" width="18" height="85" fill="#ef4444"/>
+        <rect x="1321" y="690" width="18" height="110" fill="#ef4444"/>
+        <rect x="1381" y="705" width="18" height="95" fill="#ef4444"/>
+      </g>
+    </svg>
+  </div>
+  <div class="bg-overlay" aria-hidden="true"></div>
+
+  <!-- 頂部控制列 -->
+  <header class="top-bar">
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="nav-inner">
+      <div class="brand">
+        <span>📈 台股 ETF 新手入門課</span>
+        <span class="brand-tag">LLM Wiki 驅動</span>
+      </div>
+      <div class="nav-controls">
+        <select class="jump-select" id="jumpSelect" aria-label="快速跳頁"></select>
+        <span class="slide-counter" id="slideCounter">1 / 10</span>
+        <button class="btn" id="prevBtn">← 上一頁</button>
+        <button class="btn" id="nextBtn">下一頁 →</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 簡報主舞台 -->
+  <main class="stage">
+
+    <!-- Slide 1: 封面 -->
+    <section class="slide active" data-title="01. 課程封面">
+      <div class="cover-center">
+        <div class="slide-kicker">TAICA Generative AI · LLM Wiki Instructional Slides</div>
+        <h1>給完全新手的<span class="text-red">台股 ETF</span> 入門課</h1>
+        <p class="lead">
+          沒買過股票也能輕鬆看懂！本簡報完全由個人 <strong>LLM Wiki 知識庫（5 篇核心文獻）</strong> 透過 Graph + Loop 工作流程提煉生成，帶你從零建立正確的 ETF 觀念與風險意識。
+        </p>
+        <div class="pill-row">
+          <span class="pill">🧺 基礎定義與比較</span>
+          <span class="pill">⚖️ 市值型 vs. 高股息</span>
+          <span class="pill">🔍 隱形成本與折溢價</span>
+          <span class="pill">🔄 定期定額與複利</span>
+          <span class="pill">🛡️ 迷思破解與風控</span>
+        </div>
+        <div class="box blue">
+          <h3>💡 閱讀操作提示</h3>
+          <p>可使用鍵盤 <strong>← / → 方向鍵</strong> 或右上方按鈕翻頁。每一頁底部皆附有 <strong>Wiki 知識來源標籤</strong>，確保內容 100% 源自知識庫，無 AI 憑空捏造數據。</p>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span class="source-badge">📚 知識來源：wiki/index.md</span>
+        <span>按「下一頁 →」開始學習</span>
+      </div>
+    </section>
+
+    <!-- Slide 2: 什麼是 ETF？ -->
+    <section class="slide" data-title="02. 什麼是 ETF？">
+      <div>
+        <div class="slide-kicker">Chapter 01 · 核心定義</div>
+        <h2>什麼是 ETF？用「綜合水果籃」一次搞懂</h2>
+        <p class="lead">
+          <strong>ETF（指數股票型基金）</strong>就像一個幫你配好的綜合水果籃：用小額資金一次買進數十家甚至數百家公司，單一公司出事也不會全盤皆輸。
+        </p>
+        <table class="compare-table">
+          <thead>
+            <tr>
+              <th>比較項目</th>
+              <th>個股（單一公司）</th>
+              <th>ETF（指數股票型基金）</th>
+              <th>傳統主動型共同基金</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>分散風險</strong></td>
+              <td><span class="text-green">低</span>（押注單一公司）</td>
+              <td><span class="text-red">高</span>（一籃子股票）</td>
+              <td>高（一籃子股票）</td>
+            </tr>
+            <tr class="highlight">
+              <td><strong>交易方式</strong></td>
+              <td>盤中即時買賣</td>
+              <td>盤中即時買賣（含零股）</td>
+              <td>每日僅一個收盤淨值</td>
+            </tr>
+            <tr>
+              <td><strong>管理模式</strong></td>
+              <td>自行選股</td>
+              <td>多為被動複製指數</td>
+              <td>經理人主動選股</td>
+            </tr>
+            <tr>
+              <td><strong>內扣成本</strong></td>
+              <td>無內扣管理費</td>
+              <td><span class="text-red">通常較低</span></td>
+              <td>通常較高</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="slide-footer">
+        <span class="source-badge">📚 知識來源：wiki/etf_basics.md</span>
+        <span>小資族可透過「盤中零股」或「定期定額」小額起步</span>
+      </div>
+    </section>
+
+    <!-- Slide 3: 市值型 vs 高股息 -->
+    <section class="slide" data-title="03. 市值型 vs. 高股息">
+      <div>
+        <div class="slide-kicker">Chapter 02 · 兩大主流流派</div>
+        <h2>台灣人最常買的兩大流派：市值型 vs. 高股息</h2>
+        <div class="grid-2">
+          <div class="box red">
+            <h3>🚀 市值型 ETF（追求資產成長）</h3>
+            <ul>
+              <li><strong>代表標的</strong>：0050、006208</li>
+              <li><strong>選股邏輯</strong>：依公司市值大小挑選市場龍頭，走勢高度貼近台灣大盤。</li>
+              <li><strong>核心目標</strong>：追求長期的<span class="text-red">資本利得（股價成長）</span>，權重多集中於大型指標企業。</li>
+            </ul>
+          </div>
+          <div class="box green">
+            <h3>💵 高股息 ETF（追求現金流）</h3>
+            <ul>
+              <li><strong>代表標的</strong>：0056、00878</li>
+              <li><strong>選股邏輯</strong>：篩選配息穩定或預期現金股利殖利率較高的企業。</li>
+              <li><strong>核心目標</strong>：透過季配息／月配息提供規律現金流，帶來較強的心理安定感。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="box blue" style="margin-top: 16px;">
+          <h3>⚖️ 關鍵取捨</h3>
+          <p>高股息成分股多屬成熟產業，長期股價爆發力通常不如市值型；且每次領息若沒有再投入，複利滾雪球的速度會明顯變慢。</p>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span class="source-badge">📚 知識來源：wiki/etf_types.md</span>
+        <span>沒有絕對好壞，重點在於符合你的財務目標</span>
+      </div>
+    </section>
+
+    <!-- Slide 4: 實戰怎麼挑選 -->
+    <section class="slide" data-title="04. 新手該選哪一種？">
+      <div>
+        <div class="slide-kicker">Chapter 02 · 自我評估</div>
+        <h2>實戰怎麼挑？依投資期間與心態對照</h2>
+        <p class="lead">下單前先問自己兩個問題：<strong>「這筆錢能放幾年？」</strong>與<strong>「我現在需要領現金花用嗎？」</strong></p>
+        <div class="grid-2">
+          <div class="box red">
+            <h3>適合優先研究「市值型」</h3>
+            <ul>
+              <li>大學生、剛出社會的上班族，目前已有穩定收入來源。</li>
+              <li>投資期間長（例如 <strong>5～10 年以上</strong>），不需要馬上領息當生活費。</li>
+              <li>目標是把總資產規模長期滾大。</li>
+            </ul>
+          </div>
+          <div class="box green">
+            <h3>適合優先研究「高股息」</h3>
+            <ul>
+              <li>需要定期現金流補貼支出（例如退休族群）。</li>
+              <li>看到帳面漲跌容易焦慮，需要規律領息增加「抱得住」的信心。</li>
+              <li>願意用部分長期成長潛力換取穩定的現金入帳感。</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span class="source-badge">📚 知識來源：wiki/etf_types.md</span>
+        <span>先懂自己的需求，再挑選對應的工具</span>
+      </div>
+    </section>
+
+    <!-- Slide 5: 隱形成本：內扣與追蹤誤差 -->
+    <section class="slide" data-title="05. 隱形成本與追蹤誤差">
+      <div>
+        <div class="slide-kicker">Chapter 03 · 看不見的費用</div>
+        <h2>新手最易忽略的隱形成本：內扣費與追蹤誤差</h2>
+        <p class="lead">除了看得見的券商手續費與賣出時<strong>千分之 1 的證交稅</strong>（低於一般個股千分之 3），長期投資更要留意以下兩項成本：</p>
+        <div class="grid-2">
+          <div class="box green">
+            <h3>💸 內扣費用（總費用率）</h3>
+            <ul>
+              <li>包含經理費、保管費與其他運作雜費。</li>
+              <li><strong>不會寄帳單</strong>，而是每天直接從 ETF 的淨值中按比例扣除。</li>
+              <li>持有 10～20 年下來，費用率越低，能替複利省下越多摩擦成本。</li>
+            </ul>
+          </div>
+          <div class="box blue">
+            <h3>🎯 追蹤誤差（Tracking Error）</h3>
+            <ul>
+              <li>指 ETF 實際報酬與目標指數之間的落差。</li>
+              <li>落差來自內扣費用、成分股調整交易成本與帳上現金部位。</li>
+              <li><strong>誤差越小</strong>，代表投信複製指數的執行品質越精準。</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span class="source-badge">📚 知識來源：wiki/hidden_costs.md</span>
+        <span>魔鬼藏在細節裡：長期投資對費用率高度敏感</span>
+      </div>
+    </section>
+
+    <!-- Slide 6: 折溢價 -->
+    <section class="slide" data-title="06. 看懂市價、淨值與折溢價">
+      <div>
+        <div class="slide-kicker">Chapter 03 · 避免買貴</div>
+        <h2>小心買貴了！秒懂市價、淨值與「折溢價」</h2>
+        <p class="lead">ETF 同時有兩種價格：<strong>淨值（籃子裡股票的真實價值）</strong> 與 <strong>市價（市場實際成交價）</strong>。</p>
+        <div class="grid-2">
+          <div class="box green">
+            <h3>⚠️ 溢價（市價 &gt; 淨值）＝ 買貴了</h3>
+            <ul>
+              <li>常發生在熱門 ETF 遭市場搶購時。</li>
+              <li>若在<span class="text-green">溢價過高（如超過 1%）</span>時盲目追買，未來價格回歸淨值時就會無端承受虧損。</li>
+            </ul>
+          </div>
+          <div class="box red">
+            <h3>🏷️ 折價（市價 &lt; 淨值）＝ 低於真實價值</h3>
+            <ul>
+              <li>市場賣壓較重或關注度較低時，市價可能略低於淨值。</li>
+              <li>進場前養成習慣：先到投信官網查詢「即時估計淨值與折溢價幅度」。</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span class="source-badge">📚 知識來源：wiki/hidden_costs.md</span>
+        <span>買 ETF 前多看一眼折溢價，就能避開搶購陷阱</span>
+      </div>
+    </section>
+
+    <!-- Slide 7: 定期定額與微笑曲線 -->
+    <section class="slide" data-title="07. 定期定額與微笑曲線">
+      <div>
+        <div class="slide-kicker">Chapter 04 · 紀律策略</div>
+        <h2>不猜高低點：定期定額（DCA）與微笑曲線</h2>
+        <div class="grid-2">
+          <div class="box red">
+            <h3>📅 什麼是定期定額？</h3>
+            <ul>
+              <li>固定日期投入固定金額（例如每月 3,000 元）。</li>
+              <li>價貴時自動買少、價低時自動買多，長期<strong>攤平平均成本</strong>，克服人性追高殺低。</li>
+            </ul>
+          </div>
+          <div class="box blue">
+            <h3>😊 微笑曲線運作原理</h3>
+            <ul>
+              <li>下跌期間持續扣款，能在低檔累積大量便宜股數。</li>
+              <li>反彈時<strong>不需漲回原高點</strong>，只要超過平均成本就能轉虧為盈。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="diagram-box">
+          <svg viewBox="0 0 600 115" width="100%" height="105" xmlns="http://www.w3.org/2000/svg">
+            <path d="M40 25 Q 300 125 560 35" fill="none" stroke="#38bdf8" stroke-width="3.5" />
+            <line x1="40" y1="62" x2="560" y2="62" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="6 5" />
+            <circle cx="80" cy="40" r="5" fill="#94a3b8"/>
+            <circle cx="220" cy="76" r="6" fill="#22c55e"/>
+            <circle cx="300" cy="82" r="7" fill="#22c55e"/>
+            <circle cx="380" cy="76" r="6" fill="#22c55e"/>
+            <circle cx="515" cy="48" r="7" fill="#ef4444"/>
+            <text x="45" y="18" fill="#cbd5e1" font-size="12">高點起扣</text>
+            <text x="235" y="105" fill="#86efac" font-size="13" font-weight="bold">低檔持續扣款＝累積便宜單位數</text>
+            <text x="430" y="55" fill="#fca5a5" font-size="12" font-weight="bold">平均成本線</text>
+            <text x="490" y="26" fill="#fca5a5" font-size="13" font-weight="bold">反彈即轉正</text>
+          </svg>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span class="source-badge">📚 知識來源：wiki/dca_compounding.md</span>
+        <span>微笑曲線前提：標的須具備長期向上體質（如大盤市值型）</span>
+      </div>
+    </section>
+
+    <!-- Slide 8: 複利效應 -->
+    <section class="slide" data-title="08. 複利效應三要素">
+      <div>
+        <div class="slide-kicker">Chapter 04 · 時間的威力</div>
+        <h2>時間是最好的朋友：複利效應怎麼滾雪球？</h2>
+        <p class="lead">複利的核心不是追求短期暴利，而是<strong>「把股息與報酬再投入本金，讓時間拉長產生指數級成長」</strong>。</p>
+        <div class="grid-3">
+          <div class="box blue">
+            <h3>1. 本金</h3>
+            <p>初期金額不大沒關係，透過持續工作儲蓄與定期定額，穩步增加投入規模。</p>
+          </div>
+          <div class="box red">
+            <h3>2. 報酬率</h3>
+            <p>透過指數化投資參與整體市場成長，並藉由低內扣費用守住合理報酬。</p>
+          </div>
+          <div class="box red">
+            <h3>3. 時間（最大優勢）</h3>
+            <p>對學生與年輕族群而言，<strong>越早開始</strong>並維持配息再投入，雪球後期的滾動速度越驚人。</p>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span class="source-badge">📚 知識來源：wiki/dca_compounding.md</span>
+        <span>紀律＋配息再投入＋時間＝複利運作關鍵</span>
+      </div>
+    </section>
+
+    <!-- Slide 9: 破解三大迷思 -->
+    <section class="slide" data-title="09. 破解 3 大常見迷思">
+      <div>
+        <div class="slide-kicker">Chapter 05 · 避雷指南</div>
+        <h2>新手避雷針：破解 3 大常見 ETF 迷思</h2>
+        <div class="grid-3">
+          <div class="box green">
+            <h3>❌ 配息越多＝賺越多？</h3>
+            <p>配息是從淨值扣除（左手換右手）。若沒有<strong>「填息」</strong>，領到的只是自己的本金。績效要看<strong>含息總報酬率</strong>。</p>
+          </div>
+          <div class="box green">
+            <h3>❌ 高股息像定存不會跌？</h3>
+            <p>高股息 ETF 本質仍是 <strong>100% 股票型資產</strong>，遇到系統性股災一樣會大幅下跌，絕不等於保本定存。</p>
+          </div>
+          <div class="box green">
+            <h3>❌ 買 5 檔就很分散？</h3>
+            <p>許多台股 ETF 的前十大成分股高度重疊（如皆集中在半導體或金融股），買多檔不代表真正分散風險。</p>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span class="source-badge">📚 知識來源：wiki/risk_management.md</span>
+        <span>看清規則與本質，就能避開 90% 的新手誤區</span>
+      </div>
+    </section>
+
+    <!-- Slide 10: 行動清單與免責聲明 -->
+    <section class="slide" data-title="10. 行動清單與免責聲明">
+      <div>
+        <div class="slide-kicker">Summary · 下一步行動</div>
+        <h2>新手進場前 3 大檢查清單</h2>
+        <div class="grid-3">
+          <div class="box red">
+            <h3>Step 1：備妥預備金</h3>
+            <p>先存好 <strong>3～6 個月生活緊急預備金</strong>，只用短期內動不到的「閒錢」進行投資。</p>
+          </div>
+          <div class="box blue">
+            <h3>Step 2：讀懂公開資訊</h3>
+            <p>買進前先確認該檔 ETF 的<strong>選股規則、前十大成分股、內扣費用與折溢價</strong>。</p>
+          </div>
+          <div class="box red">
+            <h3>Step 3：紀律長期執行</h3>
+            <p>選定符合自身目標的標的，以定期定額與長期複利心態取代猜測短線高低點。</p>
+          </div>
+        </div>
+        <div class="disclaimer-box">
+          <strong>⚠️ 非投資建議聲明（Disclaimer）：</strong><br />
+          本簡報與對應之 LLM Wiki 知識庫僅供學術課程展示與基礎理財觀念學習之用，所有內容均不構成任何金融商品之買賣推薦或投資建議。股票與 ETF 投資一定有風險，過去表現不代表未來績效，請投資人依自身財務狀況與風險承受度審慎評估並自負盈虧。
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span class="source-badge">📚 知識來源：wiki/risk_management.md · wiki/index.md</span>
+        <span>🎉 課程結束 · 感謝觀看</span>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    const slides = Array.from(document.querySelectorAll(".slide"));
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const counter = document.getElementById("slideCounter");
+    const progressFill = document.getElementById("progressFill");
+    const jumpSelect = document.getElementById("jumpSelect");
+
+    let current = 0;
+
+    // 初始化快速跳頁選單
+    slides.forEach((s, idx) => {
+      const opt = document.createElement("option");
+      opt.value = idx;
+      opt.textContent = s.dataset.title || `第 ${idx + 1} 頁`;
+      jumpSelect.appendChild(opt);
+    });
+
+    function render(index) {
+      current = Math.max(0, Math.min(slides.length - 1, index));
+      slides.forEach((s, i) => s.classList.toggle("active", i === current));
+      counter.textContent = `${current + 1} / ${slides.length}`;
+      progressFill.style.width = `${((current + 1) / slides.length) * 100}%`;
+      prevBtn.disabled = current === 0;
+      nextBtn.disabled = current === slides.length - 1;
+      jumpSelect.value = String(current);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    prevBtn.addEventListener("click", () => render(current - 1));
+    nextBtn.addEventListener("click", () => render(current + 1));
+    jumpSelect.addEventListener("change", (e) => render(Number(e.target.value)));
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowRight" || e.key === " ") {
+        e.preventDefault();
+        render(current + 1);
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        render(current - 1);
+      }
+    });
+
+    render(0);
+  </script>
+</body>
+</html>
